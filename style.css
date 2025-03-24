@@ -5,3 +5,16 @@
   border: 2px solid #ccc;
   border-radius: 8px;
 }
+
+nav {
+  margin: 20px;
+}
+nav a {
+  margin: 0 10px;
+  text-decoration: none;
+  color: #0077cc;
+  font-weight: bold;
+}
+nav a:hover {
+  text-decoration: underline;
+}
