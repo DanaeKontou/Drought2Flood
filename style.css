@@ -1,3 +1,24 @@
+/* Header styles */
+.top-nav {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: #f0f0f0;
+  padding: 10px 20px;
+}
+
+.top-nav a {
+  margin-right: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  color: #333;
+}
+
+.logo-btn {
+  font-size: 1.5em;
+  color: #000;
+}
+
 #map {
   width: 80%;
   height: 500px;
@@ -18,3 +39,26 @@ nav a {
 nav a:hover {
   text-decoration: underline;
 }
+/* Footer styles */
+footer {
+  position: fixed;
+  bottom: 10px;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 20px;
+  background-color: transparent;
+}
+
+.footer-content {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-content .socials a,
+.footer-content .about-link a {
+  text-decoration: none;
+  color: #555;
+  font-size: 0.9em;
+}
+
