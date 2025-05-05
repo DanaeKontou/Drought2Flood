@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 export default function HeroSection(){
     return (
-        <section className="w-full bg-gradient-to-br from-[#999DF0] to-indigo-400 dark:from-[#7C81DC] dark:to-indigo-500 text-white py-24 px-4 sm:px-6 lg:px-12 relative">
+        <section className="w-full bg-gradient-to-br from-[#999DF0] to-indigo-400 dark:from-[#7C81DC] dark:to-indigo-500 text-white py-24 px-4 sm:px-6 lg:px-12 z-0 relative">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
