@@ -4,13 +4,16 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Menu, X } from "lucide-react"; // Icons for toggle
 import TimelineSlider from "./TimelineSlider";
+import RegionSelector from "./RegionSelector";
+import ProjectionSelector from "./ProjectionSelector";
+
 
 const baseMaps = {
   Streets: `https://api.maptiler.com/maps/streets/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`,
   Topographic: `https://api.maptiler.com/maps/topo/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`,
   Satellite: `https://api.maptiler.com/maps/hybrid/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`,
   Outdoor: `https://api.maptiler.com/maps/outdoor/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`,
-  Pastel: `https://api.maptiler.com/maps/pastel/style.json?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`,
+  
 };
 
 // Define our layer data with proper structure
@@ -40,6 +43,32 @@ const mapLayers = {
     visible: true,
   }
 };
+type ProjectionType = 'mercator' | 'globe';
+
+type ProjectionSpecification =
+  | 'mercator'
+  | 'globe'
+  | {
+      name: 'globe';
+      center?: [number, number];
+      parallels?: [number, number];
+    }
+  | {
+      name: 'mercator';
+    };
+
+const getProjectionConfig = (projection: ProjectionType): ProjectionSpecification => {
+  if (projection === 'globe') {
+    return {
+      name: 'globe',
+      center: [0, 0],
+      parallels: [30, 30],
+    };
+  }
+
+  // Return string for 'mercator'
+  return 'mercator';
+};
 
 export default function MapComponent() {
   const mapContainer = useRef(null);
@@ -47,6 +76,11 @@ export default function MapComponent() {
   const [selectedStyle, setSelectedStyle] = useState<keyof typeof baseMaps>("Streets");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [selectedProjection, setSelectedProjection] = useState<ProjectionType>('mercator');
+  const [isRecreating, setIsRecreating] = useState(false);
+  const [isGrayscale, setIsGrayscale] = useState(true);
+  const [styleChangeCounter, setStyleChangeCounter] = useState(0);
+  
   
   // Track layer visibility with initial values
   const [visibleLayers, setVisibleLayers] = useState<Record<string, boolean>>(() => {
@@ -60,6 +94,54 @@ export default function MapComponent() {
   
   // Add a master toggle for all layers
   const [allLayersVisible, setAllLayersVisible] = useState(true);
+  
+const toggleProjection = async (projection: ProjectionType) => {
+  if (!mapInstance.current) return;
+
+  try {
+    const targetProjection: ProjectionType = projection === 'globe' ? 'globe' : 'mercator';
+    const projectionConfig = getProjectionConfig(targetProjection);
+
+    if (targetProjection === 'globe') {
+      if (!mapInstance.current.getSource('terrain')) {
+        mapInstance.current.addSource('terrain', {
+          type: 'raster-dem',
+          url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
+          tileSize: 256
+        });
+      }
+
+      // Properly typed projection setting
+      mapInstance.current.setProjection(projectionConfig as maplibregl.ProjectionSpecification);
+      mapInstance.current.setTerrain({
+        source: 'terrain',
+        exaggeration: 1.5
+      });
+
+      mapInstance.current.easeTo({
+        pitch: 60,
+        zoom: Math.max(mapInstance.current.getZoom(), 2.5),
+        duration: 1000
+      });
+    } else {
+      // Properly typed projection setting
+      mapInstance.current.setProjection('mercator' as maplibregl.ProjectionSpecification);
+      mapInstance.current.setTerrain(null);
+      mapInstance.current.easeTo({
+        pitch: 0,
+        duration: 1000
+      });
+    }
+
+    setSelectedProjection(targetProjection);
+  } catch (error) {
+    console.error("Error changing projection:", error);
+    // Proper fallback
+    mapInstance.current.setProjection('mercator' as maplibregl.ProjectionSpecification);
+    mapInstance.current.setTerrain(null);
+    setSelectedProjection('mercator');
+  }
+};
 
   // Initialize map
   useEffect(() => {
@@ -70,6 +152,8 @@ export default function MapComponent() {
       style: baseMaps[selectedStyle],
       center: [0, 0],
       zoom: 2,
+      //@ts-ignore
+      projection: getProjectionConfig(selectedProjection)
     });
 
     map.addControl(new maplibregl.NavigationControl({ showZoom: true }), "top-right");
@@ -82,16 +166,77 @@ export default function MapComponent() {
     );
 
     mapInstance.current = map;
+
+   
     
     // Wait for map to load before adding layers
     map.on('load', () => {
+        map.addSource('terrain', {
+      type: 'raster-dem',
+      url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
+      tileSize: 256
+    });
+    
+    // Set terrain if starting with globe
+    if (selectedProjection === 'globe') {
+      map.setTerrain({ source: 'terrain', exaggeration: 1.5 });
+      map.easeTo({ pitch: 60, zoom: 2.5 });
+    }
+    
       // Add example layers to the map
       addMapLayers(map);
+
       setMapReady(true);
     });
 
     return () => map.remove();
   }, []);
+
+  // effect to reapply grayscale when style changes
+useEffect(() => {
+  if (!mapInstance.current || !mapReady) return;
+  
+  const map = mapInstance.current;
+  
+  try {
+    // Store the current layer visibility before changing style
+    const currentVisibility = { ...visibleLayers };
+    
+    // Set up style change handling
+    const handleStyleLoad = () => {
+      // Re-add your map layers
+      addMapLayers(map);
+      
+      // Restore visibility settings
+      Object.keys(currentVisibility).forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(
+            layerId, 
+            'visibility', 
+            currentVisibility[layerId] ? 'visible' : 'none'
+          );
+        }
+      });
+      
+      // Increment counter to notify RegionSelector
+      setStyleChangeCounter(prev => prev + 1);
+      
+      // Apply grayscale filter after a short delay
+      setTimeout(() => {
+        applyGrayscaleFilter(map, isGrayscale);
+      }, 200);
+    };
+    
+    // Single event listener for style changes
+    map.once('styledata', handleStyleLoad);
+    
+    // Change the style
+    map.setStyle(baseMaps[selectedStyle]);
+    
+  } catch (error) {
+    console.error("Error changing map style:", error);
+  }
+}, [selectedStyle, mapReady]);
 
   // Function to add the map layers
   interface GeoJSONFeature {
@@ -481,7 +626,7 @@ export default function MapComponent() {
         Explore Layers
       </h2>
 
-      <div className="space-y-3 bg-slate-50/70 p-3 rounded-xl">
+      <div className="space-y-3 bg-slate-50/70 p-3 rounded-xl" id="map-section">
         {Object.keys(mapLayers).map((key) => (
           <div key={key} className="flex items-center justify-between group p-2 hover:bg-white rounded-lg transition-all cursor-pointer">
             <label className="text-sm font-medium text-slate-700 flex items-center cursor-pointer w-full">
@@ -569,6 +714,30 @@ export default function MapComponent() {
       </div>
     </>
   );
+  useEffect(() => {
+  if (mapInstance.current && mapReady) {
+    const timer = setTimeout(() => {
+      applyGrayscaleFilter(mapInstance.current!, isGrayscale);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }
+}, [isGrayscale, mapReady, styleChangeCounter]);
+
+const applyGrayscaleFilter = (map: maplibregl.Map, enable: boolean) => {
+  try {
+    const canvas = map.getCanvas();
+    if (canvas) {
+      canvas.style.filter = enable ? 'grayscale(100%) contrast(1.1) brightness(0.9)' : 'none';
+      canvas.style.pointerEvents = 'auto';
+      map.triggerRepaint();
+    }
+  } catch (error) {
+    console.error('Error applying grayscale filter:', error);
+  }
+};
+
+
 
   return (
     <div className="relative h-[80vh] md:h-[80vh] flex flex-col md:flex-row bg-slate-50">
@@ -603,7 +772,23 @@ export default function MapComponent() {
 
       {/* Map container */}
       <div className="flex-1 relative md:ml-0">
-        {/* Base map selector */}
+        
+         {/* Region Selector */}
+       <RegionSelector 
+  map={mapInstance.current} 
+  mapReady={mapReady} 
+  isGrayscale={isGrayscale}
+  onGrayscaleToggle={() => setIsGrayscale(!isGrayscale)}
+  styleChangeCounter={styleChangeCounter} // Add this new prop
+/>
+        
+      {/* Projection selector to the bottom left */}
+     <ProjectionSelector 
+  selectedProjection={selectedProjection}
+  onChange={toggleProjection}
+  className="absolute bottom-14 left-4 z-10"
+/>
+            {/* Base map selector */}
         <div className="absolute bottom-14 right-4 z-10 bg-white/80 backdrop-blur-md border border-slate-100 rounded-2xl px-4 py-3 shadow-lg transition-opacity hover:bg-white/90">
           <label className="block text-sm font-medium text-slate-800 mb-2">Base Map</label>
           <select
@@ -632,3 +817,4 @@ export default function MapComponent() {
     </div>
   );
 }
+

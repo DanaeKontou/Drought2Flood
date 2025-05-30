@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@maptiler/sdk": "^3.3.0",
     "framer-motion": "^12.9.1",
     "lucide-react": "^0.503.0",
     "maplibre-gl": "^5.4.0",

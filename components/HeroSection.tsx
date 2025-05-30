@@ -18,7 +18,7 @@ export default function HeroSection(){
         </p>
           <div className="mt-10 flex justify-center gap-4">
             <a
-              href="#"
+              href="#map-section"
               className="px-6 py-3 bg-[#EA916EF5] hover:bg-[#e57e59] text-white rounded-xl text-sm font-semibold transition"
             >
               Explore Atlas
