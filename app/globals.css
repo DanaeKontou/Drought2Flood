@@ -36,4 +36,58 @@ body {
 html {
   transition: background-color 0.3s, color 0.3s;
 }
+/* loading styles */
 
+@keyframes spin-slow {
+  from { 
+    transform: rotate(0deg); 
+  }
+  to { 
+    transform: rotate(360deg); 
+  }
+}
+
+@keyframes spin-reverse {
+  from { 
+    transform: rotate(360deg); 
+  }
+  to { 
+    transform: rotate(0deg); 
+  }
+}
+
+/* Custom animation utilities */
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 2s linear infinite;
+
+}
+
+.flower-bud-marker {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.flower-bud-marker:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.flower-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.flower-container svg {
+  display: block;
+  margin: 0 auto;
+}
+.flower-bud-marker {
+  transform-origin: center bottom !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}

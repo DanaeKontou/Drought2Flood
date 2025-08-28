@@ -1,7 +1,8 @@
 import TopNavbar from "@/components/TopNavbar"
 import SecondNavbar from "@/components/SecondNavbar"
 import HeroSection from "@/components/HeroSection"
-import MapComponent from "@/components/MapSection"
+// import MapComponent from "@/components/MapSection"
+import MapComponent from "@/components/Mapbox2"
 import Footer from "@/components/FooterSection"
 export default function Home(){
   return (
