@@ -727,7 +727,7 @@ export default function MapComponent() {
         total_events_in_month: (ev as any).total_events_in_month ?? 0,
         percentage: (ev as any).percentage ?? 0
       }))}
-      countryCode={selectedCountry.code}
+      locationCode={selectedCountry.code}
       firstYear={selectedCountry.firstYear}
       lastYear={selectedCountry.lastYear}
       width={500}

@@ -6,14 +6,32 @@ import { processExportData, downloadFile } from '@/utils/exportUtils';
 
 // Define FlowerData type if not already imported
 type FlowerData = any; // Replace 'any' with the actual structure if known
-
+interface ProvinceData {
+  province_code: string;
+  year_count: number;
+  first_year: number;
+  last_year: number;
+  centroid: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
+  total_events: number;
+  drought_events: number;
+  flood_events: number;
+  dtof_events: number;
+  drought_flood_events: number;
+}
 interface MapSidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   selectedCountry: { code: string; firstYear: number; lastYear: number } | null;
+  selectedProvince: { code: string; firstYear: number; lastYear: number } | null; // Add this
   setSelectedCountry: React.Dispatch<React.SetStateAction<{ code: string; firstYear: number; lastYear: number } | null>>;
+  setSelectedProvince: React.Dispatch<React.SetStateAction<{ code: string; firstYear: number; lastYear: number } | null>>; // Add this
   countryEvents: FlowerData[];
+  provinceEvents: FlowerData[]; // Add this
   countryAggregates: CountryData[];
+  provinceAggregates: ProvinceData[]; // Add this - you'll need to define ProvinceData type
   error: string | null;
   eventsVisible: boolean;
   setEventsVisible: (visible: boolean) => void;
@@ -25,18 +43,22 @@ interface MapSidebarProps {
   eventGeojson: GeoJSON.FeatureCollection | null;
   resetEventTypeFilter: () => void;
   resetDateRangeFilter: () => void;
-  // Add these new props for export functionality
   mapBounds?: { north: number; south: number; east: number; west: number };
   getMapBounds?: () => { north: number; south: number; east: number; west: number };
+  canadaMode: boolean; // Add this
+  toggleCanadaMode: () => void; // Add this
 }
-
 const MapSidebar: React.FC<MapSidebarProps> = ({
-   sidebarOpen,
+sidebarOpen,
   setSidebarOpen,
   selectedCountry,
+  selectedProvince,
   setSelectedCountry,
+  setSelectedProvince,
   countryEvents,
+  provinceEvents,
   countryAggregates,
+  provinceAggregates,
   error,
   eventsVisible,
   setEventsVisible,
@@ -48,6 +70,9 @@ const MapSidebar: React.FC<MapSidebarProps> = ({
   eventGeojson,
   mapBounds,
   getMapBounds,
+  canadaMode,
+  toggleCanadaMode,
+
 }) => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
@@ -203,6 +228,16 @@ const MapSidebar: React.FC<MapSidebarProps> = ({
       <h2 className="text-xl md:text-xl font-semibold tracking-tight text-white bg-[#424955] px-4 py-2 rounded-md shadow-sm mb-4 flex items-center gap-2">
         Explore Events
       </h2>
+      <button
+          onClick={toggleCanadaMode}
+          className="text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition-colors"
+        >
+          {canadaMode ? 'World' : 'Canada'}
+        </button>
+          {/* Display current mode */}
+      <div className="mb-4 text-sm font-medium text-slate-700">
+        Viewing: {canadaMode ? 'Canadian Provinces' : 'Countries'}
+      </div>
 
       {/* Events Layer Toggle */}
       <div className="space-y-3 bg-slate-50/70 p-3 rounded-xl mb-4">

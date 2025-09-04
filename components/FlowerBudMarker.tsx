@@ -18,10 +18,11 @@ interface CountryData {
 }
 
 interface FlowerBudMarkerProps {
-  countryCode: string;
+  locationCode: string;
   map: mapboxgl.Map | null;
+  provinceCode?: string;
   data: CountryData[];
-  onClick: (countryCode: string, firstYear: number, lastYear: number) => void;
+  onClick: (locationCode: string, firstYear: number, lastYear: number) => void;
   budSize?: 'small' | 'medium' | 'large'; // New prop for size control
   budStyle?: 'classic' | 'modern' | 'minimal'; // New prop for style control
 }
@@ -86,7 +87,7 @@ const FlowerBudMarker = ({
   };
 
   // Enhanced flower bud icon creation
-  const createFlowerBudIcon = (size: number, countryCode: string, countryData: CountryData): string => {
+  const createFlowerBudIcon = (size: number, locationCode: string, countryData: CountryData): string => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
@@ -204,7 +205,7 @@ const FlowerBudMarker = ({
     ctx.fill();
 
     // Enhanced country code background with rounded corners
-    const textBgWidth = Math.max(20, countryCode.length * 6);
+    const textBgWidth = Math.max(20, locationCode.length * 6);
     const textBgHeight = 14;
     const borderRadius = 4;
     
@@ -226,7 +227,7 @@ const FlowerBudMarker = ({
     ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
     ctx.shadowBlur = 1;
-    ctx.fillText(countryCode, centerX, centerY);
+    ctx.fillText(locationCode, centerX, centerY);
     ctx.shadowBlur = 0;
 
     return canvas.toDataURL();

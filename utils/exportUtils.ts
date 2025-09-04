@@ -67,11 +67,11 @@ export const generateCSV = (data: FlowerData[], includeGeometry: boolean = false
 };
 
 // Enhanced GeoJSON generation for aggregated data
-export const generateGeoJSON = (data: FlowerData[], countryCode?: string) => {
+export const generateGeoJSON = (data: FlowerData[], locationCode?: string) => {
   // Convert aggregated data to GeoJSON features
   const features = data.map((item, index) => ({
     type: 'Feature',
-    id: `${countryCode || 'unknown'}_${item.year}_${item.month}_${item.event_type}_${index}`,
+    id: `${locationCode || 'unknown'}_${item.year}_${item.month}_${item.event_type}_${index}`,
     properties: {
       year: item.year,
       month: item.month,
@@ -81,7 +81,7 @@ export const generateGeoJSON = (data: FlowerData[], countryCode?: string) => {
       severity: item.severity,
       total_events_in_month: item.total_events_in_month,
       percentage: item.percentage,
-      country_code: countryCode || 'unknown'
+      country_code: locationCode || 'unknown'
     },
     geometry: item.centroid || {
       type: 'Point',
@@ -96,7 +96,7 @@ export const generateGeoJSON = (data: FlowerData[], countryCode?: string) => {
       exportDate: new Date().toISOString(),
       featureCount: features.length,
       dataType: 'aggregated_monthly_events',
-      countryCode: countryCode
+      locationCode: locationCode
     }
   }, null, 2);
 };

@@ -1,30 +1,9 @@
 "use client"
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-interface CountryData {
-  country_code: string;
-  year_count: number;
-  first_year: number;
-  last_year: number;
-  centroid: {
-    type: 'Point';
-    coordinates: [number, number];
-  };
-  drought_events?: any[];
-  flood_events?: any[];
-  combined_events?: any[];
-}
 
-interface FlowerBudMarkerProps {
-  countryCode: string;
-  map: mapboxgl.Map | null;
-  data: CountryData[];
-  onClick: (countryCode: string, firstYear: number, lastYear: number) => void;
-  budSize?: 'small' | 'medium' | 'large'; // New prop for size control
-  budStyle?: 'classic' | 'modern' | 'minimal'; // New prop for style control
-}
 interface ProvinceData {
-  code: string;
+  province_code: string;
   year_count: number;
   first_year: number;
   last_year: number;
@@ -32,15 +11,22 @@ interface ProvinceData {
     type: 'Point';
     coordinates: [number, number];
   };
+  total_events: number;
+  drought_events: number;
+  flood_events: number;
+  dtof_events: number;
+  drought_flood_events: number;
 }
 
-interface ProvinceFlowerBudMarkerProps {
+interface CanadaFlowerBudMarkerProps {
   map: mapboxgl.Map | null;
   data: ProvinceData[];
-  onClick: (code: string, firstYear: number, lastYear: number) => void;
+  onClick: (provinceCode: string, firstYear: number, lastYear: number) => void;
   budSize?: 'small' | 'medium' | 'large';
   budStyle?: 'classic' | 'modern' | 'minimal';
+  provinceCode?: string;
 }
+
 // Enhanced color scheme with gradients
 const getEnhancedColorByCount = (total: number, style: string) => {
   const colors = {
@@ -72,13 +58,14 @@ const getEnhancedColorByCount = (total: number, style: string) => {
   return styleColors.critical;
 };
 
-const ProvinceFlowerBudMarker = ({ 
+const CanadaFlowerBudMarker = ({ 
   map, 
   data, 
   onClick, 
   budSize = 'medium',
-  budStyle = 'classic'
-}: FlowerBudMarkerProps) => {
+  budStyle = 'classic',
+  provinceCode = ""
+}: CanadaFlowerBudMarkerProps) => {
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const hoveredFeatureId = useRef<string | number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,7 +81,7 @@ const ProvinceFlowerBudMarker = ({
   };
 
   // Enhanced flower bud icon creation
-  const createFlowerBudIcon = (size: number, countryCode: string, countryData: CountryData): string => {
+  const createFlowerBudIcon = (size: number, provinceCode: string, provinceData: ProvinceData): string => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
@@ -109,7 +96,7 @@ const ProvinceFlowerBudMarker = ({
     const centerX = size / 2;
     const centerY = size / 2;
     const budRadius = size * 0.32;
-    const colors = getEnhancedColorByCount(countryData.year_count, budStyle);
+    const colors = getEnhancedColorByCount(provinceData.year_count, budStyle);
 
     // Create gradients
     const budGradient = ctx.createRadialGradient(
@@ -211,8 +198,8 @@ const ProvinceFlowerBudMarker = ({
     ctx.ellipse(centerX + budRadius * 0.15, centerY - budRadius * 0.6, budRadius * 0.15, budRadius * 0.2, 0, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Enhanced country code background with rounded corners
-    const textBgWidth = Math.max(20, countryCode.length * 6);
+    // Enhanced province code background with rounded corners
+    const textBgWidth = Math.max(20, provinceCode.length * 6);
     const textBgHeight = 14;
     const borderRadius = 4;
     
@@ -227,14 +214,14 @@ const ProvinceFlowerBudMarker = ({
     );
     ctx.fill();
 
-    // Enhanced country code text
+    // Enhanced province code text
     ctx.fillStyle = 'white';
     ctx.font = `bold ${Math.max(7, size * 0.2)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
     ctx.shadowBlur = 1;
-    ctx.fillText(countryCode, centerX, centerY);
+    ctx.fillText(provinceCode, centerX, centerY);
     ctx.shadowBlur = 0;
 
     return canvas.toDataURL();
@@ -256,17 +243,20 @@ const ProvinceFlowerBudMarker = ({
   };
 
   // Helper function to determine primary event type
-  const getPrimaryEventType = (country: CountryData): string => {
+  const getPrimaryEventType = (province: ProvinceData): string => {
     const counts = {
-      drought: country.drought_events?.length || 0,
-      flood: country.flood_events?.length || 0,
-      combined: country.combined_events?.length || 0
+      drought: province.drought_events || 0,
+      flood: province.flood_events || 0,
+      dtof: province.dtof_events || 0,
+      drought_flood: province.drought_flood_events || 0
     };
-    const max = Math.max(counts.drought, counts.flood, counts.combined);
+    
+    const max = Math.max(counts.drought, counts.flood, counts.dtof, counts.drought_flood);
     if (max === 0) return 'None';
     if (counts.drought === max) return 'Drought';
     if (counts.flood === max) return 'Flood';
-    return 'Combined';
+    if (counts.dtof === max) return 'DtoF';
+    return 'DroughtFlood';
   };
 
   // Safe layer and source checking functions
@@ -305,8 +295,8 @@ const ProvinceFlowerBudMarker = ({
     mountedRef.current = true;
     setIsLoading(true);
 
-    const sourceId = 'flower-buds-source';
-    const layerId = 'flower-buds-layer';
+    const sourceId = 'canada-flower-buds-source';
+    const layerId = 'canada-flower-buds-layer';
 
     const cleanup = () => {
       try {
@@ -367,33 +357,21 @@ const ProvinceFlowerBudMarker = ({
 
     // Create features with enhanced sizing
     const config = sizeConfig[budSize];
-    const features = data.map((country, index) => {
-      // Get severity from first available event
-      let severity = null;
-      if (country.drought_events?.length) {
-        severity = country.drought_events[0]?.severity;
-      } else if (country.flood_events?.length) {
-        severity = country.flood_events[0]?.severity;
-      } else if (country.combined_events?.length) {
-        severity = country.combined_events[0]?.severity;
-      }
-
+    const features = data.map((province, index) => {
       return {
         type: 'Feature' as const,
-        geometry: country.centroid,
+        geometry: province.centroid,
         properties: {
-          country_code: country.country_code,
-          year_count: country.year_count,
-          first_year: country.first_year,
-          last_year: country.last_year,
-          size: config.base + Math.min(country.year_count * config.multiplier, config.maxAdd),
-          total_events: (country.drought_events?.length || 0) + 
-                       (country.flood_events?.length || 0) + 
-                       (country.combined_events?.length || 0),
-          primary_event_type: getPrimaryEventType(country),
-          severity: formatSeverity(severity)
+          province_code: province.province_code,
+          year_count: province.year_count,
+          first_year: province.first_year,
+          last_year: province.last_year,
+          size: config.base + Math.min(province.year_count * config.multiplier, config.maxAdd),
+          total_events: province.total_events,
+          primary_event_type: getPrimaryEventType(province),
+          severity: formatSeverity(province.total_events) // Using total_events as a simple severity measure
         },
-        id: `${country.country_code}-${index}-${Date.now()}`
+        id: `${province.province_code}-${index}-${Date.now()}`
       };
     });
 
@@ -418,18 +396,18 @@ const ProvinceFlowerBudMarker = ({
     const loadIcons = async () => {
       try {
         for (const feature of features) {
-          const iconName = `flower-bud-${feature.properties.country_code}-${budSize}-${budStyle}`;
+          const iconName = `canada-flower-bud-${feature.properties.province_code}-${budSize}-${budStyle}`;
           
           if (addedImagesRef.current.has(iconName)) continue;
           
-          const countryData = data.find(c => c.country_code === feature.properties.country_code);
-          if (!countryData) continue;
+          const provinceData = data.find(p => p.province_code === feature.properties.province_code);
+          if (!provinceData) continue;
           
           const img = new Image();
           img.src = createFlowerBudIcon(
             feature.properties.size,
-            feature.properties.country_code,
-            countryData
+            feature.properties.province_code,
+            provinceData
           );
           
           await new Promise<void>((resolve, reject) => {
@@ -456,7 +434,7 @@ const ProvinceFlowerBudMarker = ({
           type: 'symbol',
           source: sourceId,
           layout: {
-            'icon-image': ['concat', 'flower-bud-', ['get', 'country_code'], `-${budSize}-${budStyle}`],
+            'icon-image': ['concat', 'canada-flower-bud-', ['get', 'province_code'], `-${budSize}-${budStyle}`],
             'icon-size': [
               'interpolate',
               ['linear'],
@@ -528,9 +506,9 @@ const ProvinceFlowerBudMarker = ({
             popupRef.current = new mapboxgl.Popup({
               closeButton: false,
               closeOnClick: false,
-              offset: [0, -40], // Increased offset to clear the flower bud
+              offset: [0, -40],
               maxWidth: '300px',
-              className: 'flower-bud-popup'
+              className: 'canada-flower-bud-popup'
             })
               .setLngLat(coordinates)
               .setHTML(`
@@ -554,7 +532,7 @@ const ProvinceFlowerBudMarker = ({
                     padding-bottom: 6px;
                     border-bottom: 2px solid #3498db;
                   ">
-                    ${feature.properties?.country_code || 'N/A'}
+                    ${feature.properties?.province_code || 'N/A'}
                   </div>
                   <div style="color: #34495e; line-height: 1.6; font-size: 12px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
@@ -623,7 +601,7 @@ const ProvinceFlowerBudMarker = ({
         const handleClick = (e: mapboxgl.MapMouseEvent) => {
           if (!e.features?.length) return;
           const props = e.features[0].properties || {};
-          onClick(props.country_code, props.first_year, props.last_year);
+          onClick(props.province_code, props.first_year, props.last_year);
         };
 
         // Store handlers for cleanup
@@ -677,4 +655,4 @@ const ProvinceFlowerBudMarker = ({
   return null;
 };
 
-export default ProvinceFlowerBudMarker
+export default CanadaFlowerBudMarker;

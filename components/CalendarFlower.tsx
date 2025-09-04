@@ -14,7 +14,8 @@ interface FlowerData {
 
 interface CalendarFlowerProps {
   data: FlowerData[];
-  countryCode: string;
+  locationCode: string;
+  locationType: 'country' | 'province'; 
   firstYear: number;
   lastYear: number;
   width?: number;
@@ -26,7 +27,7 @@ interface CalendarFlowerProps {
 
 const CalendarFlower = ({ 
   data, 
-  countryCode, 
+  locationCode, 
   firstYear, 
   lastYear, 
   width = 600, 
@@ -56,7 +57,7 @@ const CalendarFlower = ({
 
   useEffect(() => {
     console.log('=== ENHANCED CALENDAR FLOWER DEBUG ===');
-    console.log('Country:', countryCode);
+    console.log('Country:', locationCode);
     console.log('Year range:', firstYear, '-', lastYear);
     console.log('Total data points:', data.length);
     
@@ -431,7 +432,7 @@ filteredData = filteredData.filter(d => {
       .attr('text-anchor', 'middle')
       .style('font-size', '18px')
       .style('font-weight', 'bold')
-      .text(`${countryCode} Climate Events (${firstYear}-${lastYear})`);
+      .text(`${locationCode} Climate Events (${firstYear}-${lastYear})`);
 
     // Create gradient definitions for aesthetic petal extensions
     const defs = svg.append('defs');
@@ -676,7 +677,7 @@ filteredData = filteredData.filter(d => {
         .text(month);
     });
 
-  }, [data, countryCode, firstYear, lastYear, width, height, eventTypeFilter, dateRange]);
+  }, [data, locationCode, firstYear, lastYear, width, height, eventTypeFilter, dateRange]);
 
   return (
     <div ref={containerRef} className="flower-container relative p-6 bg-white rounded-lg shadow-xl">

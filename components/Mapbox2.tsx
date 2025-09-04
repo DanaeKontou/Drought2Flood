@@ -10,25 +10,51 @@ import MapControls from "./MapControls";
 import LoadingOverlay from "./LoadingOverlay";
 import FlowerBudMarker from './FlowerBudMarker';
 import CalendarFlower from './CalendarFlower';
+import CanadaFlowerBudMarker from "./LocalCaseStudies/Canada/ProvinceFlowerBudMarker";
 
 // Types
 import type { LocationData, CountryData as OriginalCountryData } from '@/@types/FlowerData';
 
 // Extend FlowerData to include optional original_type property
 import type { FlowerData as BaseFlowerData } from '@/@types/FlowerData';
+
 type FlowerData = BaseFlowerData & {
   original_type?: string;
   event_count?: number;
   total_events_in_month?: number;
   percentage?: number;
 };
-
+// Add this type definition
+interface ProvinceData {
+  province_code: string;
+  country_code: string;
+  year_count: number;
+  first_year: number;
+  last_year: number;
+  centroid: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
+  total_events: number;
+  drought_events: number;
+  flood_events: number;
+  dtof_events: number;
+  drought_flood_events: number;
+}
 // Extend CountryData to include average_severity and event arrays
 type CountryData = OriginalCountryData & {
   drought_events?: any[];
   flood_events?: any[];
   combined_events?: any[];
 };
+interface CanadaFlowerBudMarkerProps {
+  provinceCode: string;
+  map: mapboxgl.Map | null;
+  data: ProvinceData[];
+  onClick: (provinceCode: string, firstYear: number, lastYear: number) => void;
+  budSize?: 'small' | 'medium' | 'large';
+  budStyle?: 'classic' | 'modern' | 'minimal';
+}
   
 // Initialize Mapbox
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
@@ -131,6 +157,14 @@ export default function MapComponent() {
   const [eventGeojson, setEventGeojson] = useState<GeoJSON.FeatureCollection | null>(null);
   const [eventTypeFilter, setEventTypeFilter] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
+  const [canadaMode, setCanadaMode] = useState(false);
+  const [provinceAggregates, setProvinceAggregates] = useState<ProvinceData[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<{
+  code: string;
+  firstYear: number;
+  lastYear: number;
+} | null>(null);
+const [provinceEvents, setProvinceEvents] = useState<FlowerData[]>([]);
   const [eventsVisible, setEventsVisible] = useState(true);
   
   // State for FlowerBudMarker and CalendarFlower components
@@ -280,6 +314,37 @@ export default function MapComponent() {
     fetchCountryAggregates();
   }, [mapReady]);
 
+  // useEffect to fetch Canadian data when in Canada mode
+useEffect(() => {
+  if (!mapReady || !canadaMode) return;
+
+  const fetchProvinceAggregates = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const response = await fetch('/api/canada/events');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setProvinceAggregates(data);
+    } catch (error) {
+      console.error('Error fetching province aggregates:', error);
+      setError('Failed to fetch province data');
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  fetchProvinceAggregates();
+}, [mapReady, canadaMode]);
+
+// Add toggle function for Canada mode
+const toggleCanadaMode = () => {
+  setCanadaMode(!canadaMode);
+  setSelectedCountry(null);
+  setSelectedProvince(null);
+  // Reset other relevant states
+};
+
+
   // Fetch detailed events when country is selected
   useEffect(() => {
     if (!selectedCountry) return;
@@ -413,151 +478,164 @@ export default function MapComponent() {
         }
     }, [mapReady, countryEvents]);
 
-  return(
-    <div className="relative h-[80vh] md:h-[80vh] flex flex-col md:flex-row bg-slate-50 overflow-hidden">
-        
- {/* Mobile toggle button */}
-           <button
-        onClick={() => setSidebarOpen(true)}
-        className="md:hidden absolute top-4 left-4 z-20 bg-white/90 p-2 rounded-full shadow-lg backdrop-blur-sm border border-slate-100 hover:bg-white transition-all"
-      >
-        <Menu className="w-5 h-5 text-slate-700" />
-      </button>
-
-      {/* Desktop sidebar - positioned on the left */}
-      <aside className="hidden md:flex md:w-72 md:flex-shrink-0 bg-white/80 backdrop-blur-md rounded-r-2xl shadow-lg border-r border-slate-100 transition-all flex-col h-full">
-        <div className="flex-1 p-4 overflow-hidden">
-          <MapSidebar
-            sidebarOpen={true} // Always open on desktop
-            setSidebarOpen={setSidebarOpen}
-            selectedCountry={selectedCountry}
-            setSelectedCountry={setSelectedCountry}
-            countryEvents={countryEvents}
-            countryAggregates={countryAggregates}
-            error={error}
-            isLoadingEvents={isLoadingEvents}
-            eventTypeFilter={eventTypeFilter}
-            setEventTypeFilter={setEventTypeFilter}
-            dateRange={dateRange}
-            setDateRange={setDateRange}
-            resetEventTypeFilter={resetEventTypeFilter}
-            resetDateRangeFilter={resetDateRangeFilter}
-            eventsVisible={eventsVisible}
-            setEventsVisible={setEventsVisible}
-            eventGeojson={eventGeojson}
-          />
-        </div>
-      </aside>
-
-      {/* Mobile sidebar */}
-      <aside
-        className={`
-          fixed md:hidden top-0 left-0 z-20 h-full w-72 bg-white/90 backdrop-blur-md shadow-xl transition-all duration-300 ease-in-out flex flex-col
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
-        <div className="flex justify-end p-4 pb-2 flex-shrink-0">
-          <button 
-            onClick={() => setSidebarOpen(false)} 
-            className="text-slate-600 hover:text-slate-800 bg-slate-100 p-1.5 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="flex-1 px-4 pb-4 overflow-hidden">
-          <MapSidebar
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
-            selectedCountry={selectedCountry}
-            setSelectedCountry={setSelectedCountry}
-            countryEvents={countryEvents}
-            countryAggregates={countryAggregates}
-            error={error}
-            isLoadingEvents={isLoadingEvents}
-            eventTypeFilter={eventTypeFilter}
-            setEventTypeFilter={setEventTypeFilter}
-            dateRange={dateRange}
-            setDateRange={setDateRange}
-            resetEventTypeFilter={resetEventTypeFilter}
-            resetDateRangeFilter={resetDateRangeFilter}
-            eventsVisible={eventsVisible}
-            setEventsVisible={setEventsVisible}
-            eventGeojson={eventGeojson}
-          />
-        </div>
-      </aside>
-      
-      {/* Main map container - takes remaining space */}
-      <div className="flex-1 relative overflow-hidden">
-        <div ref={mapContainer} className="h-full w-full" />
-        
-        {/* Sidebar toggle button - positioned at top-left of map area */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute top-4 left-4 z-10 bg-white p-2 rounded-md shadow-lg hover:bg-gray-50 transition-colors"
-          aria-label="Toggle sidebar"
-        >
-          <Menu size={20} />
-        </button>
-        
-        <LoadingOverlay isVisible={!mapReady || isLoadingEvents} />
-        
-        <MapControls
-          map={mapInstance.current}
-          mapReady={mapReady}
-          isGrayscale={isGrayscale}
-          onGrayscaleToggle={() => setIsGrayscale(!isGrayscale)}
-          styleChangeCounter={styleChangeCounter}
-          selectedProjection={selectedProjection}
-          onProjectionChange={toggleProjection}
-          selectedStyle={selectedStyle}
-          onStyleChange={(style) => {
-            setSelectedStyle(style as keyof typeof baseMaps);
-            setStyleChangeCounter((prev) => prev + 1);
-          }}
-          baseMaps={baseMaps}
-        />
-       {mapReady && countryAggregates.length > 0 && (
-      <FlowerBudMarker 
-        map={mapInstance.current!}
-        data={countryAggregates.map(c => ({
-          ...c,
-          drought_events: c.drought_events ?? [],
-          flood_events: c.flood_events ?? [],
-          combined_events: c.combined_events ?? []
-        }))}
-        onClick={(code, firstYear, lastYear) => setSelectedCountry({ code, firstYear, lastYear })}
-        budSize="large"      // Options: 'small' | 'medium' | 'large'
-        budStyle="classic"    // Options: 'classic' | 'modern' | 'minimal'
-        countryCode={selectedCountry?.code ?? ""}
-      />
-    )}
-    {selectedCountry && countryEvents.length > 0 && (
-  <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-lg shadow-xl">
-    <button 
-      onClick={() => setSelectedCountry(null)}
-      className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+ return (
+  <div className="relative h-[80vh] md:h-[80vh] flex flex-col md:flex-row bg-slate-50 overflow-hidden">
+    
+    {/* Mobile toggle button */}
+    <button
+      onClick={() => setSidebarOpen(true)}
+      className="md:hidden absolute top-4 left-4 z-20 bg-white/90 p-2 rounded-full shadow-lg backdrop-blur-sm border border-slate-100 hover:bg-white transition-all"
     >
-      ✕
+      <Menu className="w-5 h-5 text-slate-700" />
     </button>
-    <CalendarFlower 
-      data={countryEvents.map(ev => ({
-        ...ev,
-        original_type: (ev as any).original_type ?? (ev as any).event_type ?? '',
-        event_count: (ev as any).event_count ?? 0,
-        total_events_in_month: (ev as any).total_events_in_month ?? 0,
-        percentage: (ev as any).percentage ?? 0
-      }))}
-      countryCode={selectedCountry.code}
-      firstYear={selectedCountry.firstYear}
-      lastYear={selectedCountry.lastYear}
-      width={500}
-      height={500}
-      eventTypeFilter={eventTypeFilter}
-      dateRange={dateRange}
-    />
-  </div>
-)}
+
+    {/* Desktop sidebar */}
+    <aside className="hidden md:flex md:w-72 md:flex-shrink-0 bg-white/80 backdrop-blur-md rounded-r-2xl shadow-lg border-r border-slate-100 transition-all flex-col h-full">
+      <div className="flex-1 p-4 overflow-hidden">
+        <MapSidebar
+          sidebarOpen={true}
+          setSidebarOpen={setSidebarOpen}
+          selectedCountry={selectedCountry}
+          selectedProvince={selectedProvince}
+          setSelectedCountry={setSelectedCountry}
+          setSelectedProvince={setSelectedProvince}
+          countryEvents={countryEvents}
+          provinceEvents={provinceEvents}
+          countryAggregates={countryAggregates}
+          provinceAggregates={provinceAggregates}
+          error={error}
+          isLoadingEvents={isLoadingEvents}
+          eventTypeFilter={eventTypeFilter}
+          setEventTypeFilter={setEventTypeFilter}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
+          resetEventTypeFilter={resetEventTypeFilter}
+          resetDateRangeFilter={resetDateRangeFilter}
+          eventsVisible={eventsVisible}
+          setEventsVisible={setEventsVisible}
+          eventGeojson={eventGeojson}
+          canadaMode={canadaMode}
+          toggleCanadaMode={toggleCanadaMode}
+        />
+      </div>
+    </aside>
+
+    {/* Mobile sidebar - similar updates needed here */}
+
+    {/* Main map container */}
+    <div className="flex-1 relative overflow-hidden">
+      <div ref={mapContainer} className="h-full w-full" />
+      
+      {/* Canada mode toggle button - positioned appropriately */}
+      <button
+        onClick={toggleCanadaMode}
+        className="absolute top-16 left-4 z-10 bg-white p-2 rounded-md shadow-lg hover:bg-gray-50 transition-colors"
+      >
+        {canadaMode ? 'World View' : 'Canada View'}
+      </button>
+      
+      <LoadingOverlay isVisible={!mapReady || isLoadingEvents} />
+      
+      <MapControls
+        map={mapInstance.current}
+        mapReady={mapReady}
+        isGrayscale={isGrayscale}
+        onGrayscaleToggle={() => setIsGrayscale(!isGrayscale)}
+        styleChangeCounter={styleChangeCounter}
+        selectedProjection={selectedProjection}
+        onProjectionChange={toggleProjection}
+        selectedStyle={selectedStyle}
+        onStyleChange={(style) => {
+          setSelectedStyle(style as keyof typeof baseMaps);
+          setStyleChangeCounter((prev) => prev + 1);
+        }}
+        baseMaps={baseMaps}
+      />
+      
+      {/* Conditionally render either country OR province markers */}
+      {mapReady && !canadaMode && countryAggregates.length > 0 && (
+        <FlowerBudMarker 
+          map={mapInstance.current!}
+          data={countryAggregates.map(c => ({
+            ...c,
+            drought_events: c.drought_events ?? [],
+            flood_events: c.flood_events ?? [],
+            combined_events: c.combined_events ?? []
+          }))}
+          onClick={(code, firstYear, lastYear) => setSelectedCountry({ code, firstYear, lastYear })}
+          budSize="large"
+          budStyle="classic"
+          locationCode={selectedCountry?.code ?? ""}
+        />
+      )}
+      
+      {mapReady && canadaMode && provinceAggregates.length > 0 && (
+        <CanadaFlowerBudMarker 
+          map={mapInstance.current!}
+          data={provinceAggregates}
+          onClick={(code, firstYear, lastYear) => setSelectedProvince({ code, firstYear, lastYear })}
+          budSize="large"
+          budStyle="classic"
+          provinceCode={selectedProvince?.code ?? ""}
+        />
+      )}
+      
+      {/* Show either country or province calendar flower */}
+      {selectedCountry && countryEvents.length > 0 && (
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-lg shadow-xl">
+        <button 
+          onClick={() => setSelectedCountry(null)}
+          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+        >
+          ✕
+        </button>
+        <CalendarFlower 
+          data={countryEvents.map(ev => ({
+            ...ev,
+            original_type: (ev as any).original_type ?? (ev as any).event_type ?? '',
+            event_count: (ev as any).event_count ?? 0,
+            total_events_in_month: (ev as any).total_events_in_month ?? 0,
+            percentage: (ev as any).percentage ?? 0
+          }))}
+          locationCode={selectedCountry.code}
+          locationType="country"
+          firstYear={selectedCountry.firstYear}
+          lastYear={selectedCountry.lastYear}
+          width={500}
+          height={500}
+          eventTypeFilter={eventTypeFilter}
+          dateRange={dateRange}
+        />
+      </div>
+    )}
+     {/* Province CalendarFlower */}
+    {selectedProvince && provinceEvents.length > 0 && (
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-lg shadow-xl">
+        <button 
+          onClick={() => setSelectedProvince(null)}
+          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+        >
+          ✕
+        </button>
+        <CalendarFlower 
+          data={provinceEvents.map(ev => ({
+            ...ev,
+            original_type: (ev as any).original_type ?? (ev as any).event_type ?? '',
+            event_count: (ev as any).event_count ?? 0,
+            total_events_in_month: (ev as any).total_events_in_month ?? 0,
+            percentage: (ev as any).percentage ?? 0
+          }))}
+          locationCode={selectedProvince.code}
+          locationType="province"
+          firstYear={selectedProvince.firstYear}
+          lastYear={selectedProvince.lastYear}
+          width={500}
+          height={500}
+          eventTypeFilter={eventTypeFilter}
+          dateRange={dateRange}
+        />
+      </div>
+    )}
       {/* Backdrop for mobile sidebar */}
       {sidebarOpen && (
         <div 
@@ -566,6 +644,6 @@ export default function MapComponent() {
         />
       )}
     </div>
-    </div>
-  );
+  </div>
+);
 }
