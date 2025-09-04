@@ -75,6 +75,8 @@ sidebarOpen,
 
 }) => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedCaseStudy, setSelectedCaseStudy] = useState('');
+
 
   // Updated handleExport function that actually performs the export
  const handleExport = (options: {
@@ -228,12 +230,7 @@ sidebarOpen,
       <h2 className="text-xl md:text-xl font-semibold tracking-tight text-white bg-[#424955] px-4 py-2 rounded-md shadow-sm mb-4 flex items-center gap-2">
         Explore Events
       </h2>
-      <button
-          onClick={toggleCanadaMode}
-          className="text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition-colors"
-        >
-          {canadaMode ? 'World' : 'Canada'}
-        </button>
+
           {/* Display current mode */}
       <div className="mb-4 text-sm font-medium text-slate-700">
         Viewing: {canadaMode ? 'Canadian Provinces' : 'Countries'}
@@ -341,22 +338,38 @@ sidebarOpen,
       </div>
 
       {/* Case Studies */}
-      <div className="mt-6">
-        <label className="block text-sm font-semibold mb-2 text-slate-700">Local Case Studies</label>
-        <div className="relative">
-          <select className="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-2.5 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all cursor-pointer">
-            <option value="">World View</option>
-            <option>Kitui</option>
-            <option>Iquitos</option>
-            <option>Canada</option>
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m6 9 6 6 6-6"/>
-            </svg>
-          </div>
-        </div>
-      </div>
+<div className="mt-6">
+  <label className="block text-sm font-semibold mb-2 text-slate-700">Local Case Studies</label>
+  <div className="relative">
+    <select
+      className="w-full appearance-none bg-white border border-slate-200 text-slate-700 py-2.5 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all cursor-pointer"
+      value={selectedCaseStudy}
+      onChange={(e) => {
+        const value = e.target.value;
+        setSelectedCaseStudy(value);
+
+        // Trigger toggle only when needed
+        if (value === 'Canada' && !canadaMode) {
+          toggleCanadaMode(); // Switch to Canada mode
+        } else if (value !== 'Canada' && canadaMode) {
+          toggleCanadaMode(); // Switch back to World mode
+        }
+      }}
+    >
+      <option value="">World View</option>
+      <option value="Kitui">Kitui</option>
+      <option value="Iquitos">Iquitos</option>
+      <option value="Canada">Canada</option>
+    </select>
+
+    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  </div>
+</div>
+
 
       {/* Export View & Feedback section */}
       <div className="mt-6 bg-slate-50/70 p-4 rounded-xl">

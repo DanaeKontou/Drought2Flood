@@ -25,6 +25,7 @@ interface CanadaFlowerBudMarkerProps {
   budSize?: 'small' | 'medium' | 'large';
   budStyle?: 'classic' | 'modern' | 'minimal';
   provinceCode?: string;
+   isDimmed?: boolean;
 }
 
 // Enhanced color scheme with gradients
@@ -574,6 +575,7 @@ const CanadaFlowerBudMarker = ({
               .addTo(map);
           }
         };
+        
 
         const handleMouseLeave = () => {
           map.getCanvas().style.cursor = '';
@@ -642,6 +644,8 @@ const CanadaFlowerBudMarker = ({
       mountedRef.current = false;
       cleanup();
     };
+   
+    
   }, [map, data, onClick, budSize, budStyle]);
 
   if (isLoading) {
