@@ -1,3 +1,4 @@
+// constants/canada.ts
 export const CANADA_PROVINCES = [
   { code: 'AB', name: 'Alberta' },
   { code: 'BC', name: 'British Columbia' },

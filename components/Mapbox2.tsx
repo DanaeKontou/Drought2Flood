@@ -478,6 +478,28 @@ const toggleCanadaMode = () => {
         }
     }, [mapReady, countryEvents]);
 
+    // Fetch detailed events when province is selected
+useEffect(() => {
+  if (!selectedProvince) return;
+
+  const fetchProvinceEvents = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const response = await fetch(`/api/canada/events?province=${selectedProvince.code}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setProvinceEvents(data);
+    } catch (error) {
+      console.error('Error fetching province events:', error);
+      setError('Failed to fetch province events');
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  fetchProvinceEvents();
+}, [selectedProvince]);
+
  return (
   <div className="relative h-[80vh] md:h-[80vh] flex flex-col md:flex-row bg-slate-50 overflow-hidden">
     
@@ -609,33 +631,41 @@ const toggleCanadaMode = () => {
       </div>
     )}
      {/* Province CalendarFlower */}
-    {selectedProvince && provinceEvents.length > 0 && (
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-lg shadow-xl">
-        <button 
-          onClick={() => setSelectedProvince(null)}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-        >
-          ✕
-        </button>
-        <CalendarFlower 
-          data={provinceEvents.map(ev => ({
-            ...ev,
-            original_type: (ev as any).original_type ?? (ev as any).event_type ?? '',
-            event_count: (ev as any).event_count ?? 0,
-            total_events_in_month: (ev as any).total_events_in_month ?? 0,
-            percentage: (ev as any).percentage ?? 0
-          }))}
-          locationCode={selectedProvince.code}
-          locationType="province"
-          firstYear={selectedProvince.firstYear}
-          lastYear={selectedProvince.lastYear}
-          width={500}
-          height={500}
-          eventTypeFilter={eventTypeFilter}
-          dateRange={dateRange}
-        />
+{/* Province CalendarFlower */}
+{mapReady && canadaMode && selectedProvince && (
+  <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-lg shadow-xl">
+    <button 
+      onClick={() => setSelectedProvince(null)}
+      className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+    >
+      ✕
+    </button>
+    {provinceEvents.length > 0 ? (
+      <CalendarFlower 
+        data={provinceEvents.map(ev => ({
+          ...ev,
+          original_type: (ev as any).original_type ?? (ev as any).event_type ?? '',
+          event_count: (ev as any).event_count ?? 0,
+          total_events_in_month: (ev as any).total_events_in_month ?? 0,
+          percentage: (ev as any).percentage ?? 0
+        }))}
+        locationCode={selectedProvince.code}
+        locationType="province"
+        firstYear={selectedProvince.firstYear}
+        lastYear={selectedProvince.lastYear}
+        width={500}
+        height={500}
+        eventTypeFilter={eventTypeFilter}
+        dateRange={dateRange}
+      />
+    ) : (
+      <div className="flex justify-center items-center h-64 w-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        <span className="ml-2">Loading province data...</span>
       </div>
     )}
+  </div>
+)}
       {/* Backdrop for mobile sidebar */}
       {sidebarOpen && (
         <div 
